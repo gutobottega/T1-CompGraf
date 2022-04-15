@@ -1,0 +1,13 @@
+para força bruta 
+	-pontos * arestas
+	-usa o haintersercção
+	-falta gerar os pontos só
+convexhull
+	-antes de calcular a inclsao dos pontos com o força bruta use 	o convexhull para remover os pontos fora do convexhull
+	-Produto vetorial ajuda com isso
+
+faixas
+	- terao menos intersecções pois é só necessário testar com as 	arestas que estao na mesma faixa
+	
+	
+
