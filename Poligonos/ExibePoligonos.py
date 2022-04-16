@@ -18,6 +18,7 @@
 #   Veja o arquivo Patch.rtf, armazenado na mesma pasta deste fonte.
 # ***********************************************************************************
 
+import copy
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
@@ -34,6 +35,74 @@ EspacoDividido = ConjuntoDeFaixas()
 Min = Ponto()
 Max = Ponto()
 PontoClicado = Ponto()
+
+def minimoMaximoLocal(p,pe,pd):
+    if(pe.y > p.y and pd.y > p.y): return True
+    if(pe.y < p.y and pd.y < p.y): return True
+    return False
+
+
+def inclusaoPonto(ponto:Ponto):
+    
+    interseccao = 0
+    conta = True
+    Dir = Ponto(-1,0)
+    ponto2 = ponto + Dir * 100
+    DesenhaLinha(ponto, ponto2)
+    arestasValidas = []
+    for i in range(Mapa.getNVertices()):
+        P1, P2 = Mapa.getAresta(i)
+        if((P1.y <= ponto.y and P2.y >= ponto.y) or (P1.y >= ponto.y and P2.y <= ponto.y)):
+            arestasValidas += [i]
+    for i in  arestasValidas:
+        P1, P2 = Mapa.getAresta(i)
+        if HaInterseccao(ponto,ponto2, P1, P2):
+            if(P1.y == ponto.y):
+                px1, px2 = Mapa.getAresta(i - 1)
+                if(minimoMaximoLocal(P1, px1, P2)):
+                    interseccao += 1
+            else: interseccao += 1
+    return interseccao % 2 != 0
+
+# ********************************************************************** */
+#                                                                        */
+#  Calcula a interseccao entre 2 retas (no plano "XY" Z = 0)             */
+#                                                                        */
+# k : ponto inicial da reta 1                                            */
+# l : ponto final da reta 1                                              */
+# m : ponto inicial da reta 2                                            */
+# n : ponto final da reta 2                                              */
+# 
+# Retorna:
+# 0, se não houver interseccao ou 1, caso haja                                                                       */
+# int, valor do parâmetro no ponto de interseção (sobre a reta KL)       */
+# int, valor do parâmetro no ponto de interseção (sobre a reta MN)       */
+#                                                                        */
+# ********************************************************************** */
+def intersec2d(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
+    det = (n.x - m.x) * (l.y - k.y)  -  (n.y - m.y) * (l.x - k.x)
+
+    if (det == 0.0):
+        return 0, None, None # não há intersecção
+
+    s = ((n.x - m.x) * (m.y - k.y) - (n.y - m.y) * (m.x - k.x))/ det
+    t = ((l.x - k.x) * (m.y - k.y) - (l.y - k.y) * (m.x - k.x))/ det
+
+    return 1, s, t # há intersecção
+
+# **********************************************************************
+# HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto)
+# Detecta interseccao entre os pontos
+#
+# **********************************************************************
+def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto) -> bool:
+    ret, s, t = intersec2d( k,  l,  m,  n)
+
+    if not ret: return False
+
+    return s>=0.0 and s <=1.0 and t>=0.0 and t<=1.0
+
+
 
 def DesenhaLinha (P1, P2):
     glBegin(GL_LINES)
@@ -191,8 +260,40 @@ def init():
     glClearColor(0, 0, 1, 1)
     global Min, Max
     Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste.txt")
-    CriaFaixas()
-    ImprimeFaixas()
+    #Mapa.imprimeVertices()
+    # p = Ponto(15,8)
+    # p2 = Ponto(15,2)
+    # p3 = Ponto(7,2)
+    # p4 = Ponto(8,5)
+    
+    # p = Ponto(16,7)
+    # p2 = Ponto(2,4)
+    # p3 = Ponto(5,4)
+    # p4 = Ponto(16,4)
+    
+    # p = Ponto(10,8)
+    # p2 = Ponto(15,0)
+    # p3 = Ponto(15,5)
+    # p4 = Ponto(11,2)
+    
+    # p = Ponto(5,3)
+    # p2 = Ponto(2,2)
+    # p3 = Ponto(7,1)
+    # p4 = Ponto(3,1)
+    
+    p = Ponto(20,7)
+    p2 = Ponto(2,4)
+    p3 = Ponto(12,1)
+    p4 = Ponto(16,1)
+    
+    p.imprime(inclusaoPonto(p))
+    p2.imprime(inclusaoPonto(p2))
+    p3.imprime(inclusaoPonto(p3))
+    p4.imprime(inclusaoPonto(p4))
+   
+    
+    #CriaFaixas()
+    #ImprimeFaixas()
 
 
 # ***********************************************************************************
