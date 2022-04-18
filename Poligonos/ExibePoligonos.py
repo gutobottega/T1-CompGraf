@@ -461,6 +461,11 @@ def init():
     
     
     #ImprimeFaixas()
+    
+    #TODO: VER OS OUTROS TODOS kK
+    #TODO: FAZER OS CONTADORES
+    #TODO: MODIFICAR LÓGICA PARA MOSTRAR CONVEXHULL
+    #TODO: MONTAR CORES
 
 
 # ***********************************************************************************
