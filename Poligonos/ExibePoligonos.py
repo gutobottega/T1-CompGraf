@@ -18,7 +18,7 @@
 #   Veja o arquivo Patch.rtf, armazenado na mesma pasta deste fonte.
 # ***********************************************************************************
 
-import copy
+from math import sqrt
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
@@ -36,29 +36,110 @@ Min = Ponto()
 Max = Ponto()
 PontoClicado = Ponto()
 
+def pegaMenorMaior():
+    menorX = 0
+    maiorX = 0
+    menorY = 0
+    maiorY = 0
+    for i in range(Mapa.getNVertices()):
+        p = Mapa.getVertice(i);
+        if Mapa.getVertice(menorX).x > p.x: menorX = i
+        if Mapa.getVertice(menorY).y > p.y: menorY = i
+        if Mapa.getVertice(maiorX).x < p.x: maiorX = i
+        if Mapa.getVertice(maiorY).y < p.y: maiorY = i
+    return [menorX, maiorX, menorY, maiorY]
+
+def prodVetorial (v1, v2):
+    vresult = Ponto()
+    vresult.x = v1.y * v2.z - (v1.z * v2.y)
+    vresult.y = v1.z * v2.x - (v1.x * v2.z)
+    vresult.z = v1.x * v2.y - (v1.y * v2.x)
+    return vresult
+
+def prodEscalar(v1, v2):
+    return v1.x*v2.x + v1.y*v2.y+ v1.z*v2.z;
+
+def anguloEscalar(v1, v2):
+    prod = prodEscalar(v1,v2)
+    v1N = sqrt(v1.x*v1.x + v1.y*v1.y)
+    v2N = sqrt(v2.x*v2.x + v2.y*v2.y)
+    return prod/(v1N*v2N)
+
+def quickHull():
+    menorMaior = pegaMenorMaior()
+    poligono = Polygon()
+    poligono.inserePonto(Mapa.getVertice(menorMaior[0]))
+    poligono.inserePonto(Mapa.getVertice(menorMaior[3]))
+    poligono.inserePonto(Mapa.getVertice(menorMaior[1]))
+    poligono.inserePonto(Mapa.getVertice(menorMaior[2]))
+    
+    dentro = []
+    for atual in range(Mapa.getNVertices()):
+        if atual in menorMaior:
+            pass
+        elif  inclusaoPontoConvexo(Mapa.getVertice(atual), poligono):
+            dentro += [atual]
+    vBase = Ponto(0, 0)
+    atual = menorMaior[0]
+    convexRetorno = [atual]
+    incompleto = True
+    while incompleto:
+        if atual in menorMaior:
+            if atual == menorMaior[0]:#menor X
+                vBase = Ponto(0,1)
+            elif atual == menorMaior[1]:#maior X
+                vBase = Ponto(0,-1)
+            elif atual == menorMaior[2]:#menor Y
+                vBase = Ponto(-1,0)
+            elif atual == menorMaior[3]:# maior Y
+                vBase = Ponto(1,0)
+        proximoAnguloMenor = 0.0
+        proximo = 0
+        for i in range(Mapa.getNVertices()):
+            if i != atual and i not in dentro:
+                p2 = Mapa.getVertice(i)
+                v2 = p2 - Mapa.getVertice(atual)
+                anguloAtual = anguloEscalar(vBase, v2)
+                if(anguloAtual > proximoAnguloMenor): 
+                    proximo = i
+                    proximoAnguloMenor = anguloAtual
+        if(proximo == convexRetorno[0]):
+            incompleto = False
+        else: 
+            atual = proximo
+            convexRetorno += [atual]
+    return convexRetorno
+
 def minimoMaximoLocal(p,pe,pd):
     if(pe.y > p.y and pd.y > p.y): return True
     if(pe.y < p.y and pd.y < p.y): return True
     return False
 
+def inclusaoPontoConvexo(ponto:Ponto, poligono: Polygon):
+    for i in range(poligono.getNVertices()):
+        P1, P2 = poligono.getAresta(i)
+        v1 = P2 - P1
+        v2 = ponto - P1
+        vr = prodVetorial(v1, v2)
+        #print(vr.z)
+        if(vr.z > 0): return False
+    return True
 
-def inclusaoPonto(ponto:Ponto):
-    
+def inclusaoPontoConcavo(ponto:Ponto, poligono: Polygon):
     interseccao = 0
-    conta = True
     Dir = Ponto(-1,0)
     ponto2 = ponto + Dir * 100
     DesenhaLinha(ponto, ponto2)
     arestasValidas = []
-    for i in range(Mapa.getNVertices()):
-        P1, P2 = Mapa.getAresta(i)
+    for i in range(poligono.getNVertices()):
+        P1, P2 = poligono.getAresta(i)
         if((P1.y <= ponto.y and P2.y >= ponto.y) or (P1.y >= ponto.y and P2.y <= ponto.y)):
             arestasValidas += [i]
     for i in  arestasValidas:
-        P1, P2 = Mapa.getAresta(i)
+        P1, P2 = poligono.getAresta(i)
         if HaInterseccao(ponto,ponto2, P1, P2):
             if(P1.y == ponto.y):
-                px1, px2 = Mapa.getAresta(i - 1)
+                px1, __ = poligono.getAresta(i - 1)
                 if(minimoMaximoLocal(P1, px1, P2)):
                     interseccao += 1
             else: interseccao += 1
@@ -97,9 +178,7 @@ def intersec2d(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
 # **********************************************************************
 def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto) -> bool:
     ret, s, t = intersec2d( k,  l,  m,  n)
-
     if not ret: return False
-
     return s>=0.0 and s <=1.0 and t>=0.0 and t<=1.0
 
 
@@ -259,37 +338,53 @@ def init():
     # Define a cor do fundo da tela (AZUL)
     glClearColor(0, 0, 1, 1)
     global Min, Max
-    Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste.txt")
+    Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste2.txt")
+   
+    p = Mapa.getVertice(0)
+    #p.imprime()
+    #convexhull()
+    
+    p1 = Ponto(8,4)
+    p2 = Ponto(4,7)
+    
+    p = prodVetorial(p1,p2)
+    #p.imprime()
+   
     #Mapa.imprimeVertices()
-    # p = Ponto(15,8)
-    # p2 = Ponto(15,2)
-    # p3 = Ponto(7,2)
-    # p4 = Ponto(8,5)
+    p1 = Ponto(0,0)
+    p2 = Ponto(0,10)
+    p3 = Ponto(10,10)
+    p4 = Ponto(10,0)
     
-    # p = Ponto(16,7)
-    # p2 = Ponto(2,4)
-    # p3 = Ponto(5,4)
-    # p4 = Ponto(16,4)
+    poligono = Polygon()
+    poligono.inserePonto(p)
+    poligono.inserePonto(p2)
+    poligono.inserePonto(p3)
+    poligono.inserePonto(p4)
     
-    # p = Ponto(10,8)
-    # p2 = Ponto(15,0)
-    # p3 = Ponto(15,5)
-    # p4 = Ponto(11,2)
+    print(anguloEscalar(Ponto(-1,0), Ponto(-1,0)))
+    print(anguloEscalar(Ponto(-1,0), Ponto(-1,10)))
     
-    # p = Ponto(5,3)
-    # p2 = Ponto(2,2)
-    # p3 = Ponto(7,1)
-    # p4 = Ponto(3,1)
+    p1.imprime()
+    p2.imprime()
     
-    p = Ponto(20,7)
-    p2 = Ponto(2,4)
-    p3 = Ponto(12,1)
-    p4 = Ponto(16,1)
+    p5 = Ponto(-2,5)
+    p6 = Ponto(5,12)
+    p7 = Ponto(12,5)
+    p8 = Ponto(5,-2)
+    p9 = Ponto(6,6)
     
-    p.imprime(inclusaoPonto(p))
-    p2.imprime(inclusaoPonto(p2))
-    p3.imprime(inclusaoPonto(p3))
-    p4.imprime(inclusaoPonto(p4))
+    print(quickHull())
+    
+    # p5.imprime(inclusaoPontoConvexo(p5,poligono))
+    # print('-------------')
+    # p6.imprime(inclusaoPontoConvexo(p6,poligono))
+    # print('-------------')
+    # p7.imprime(inclusaoPontoConvexo(p7,poligono))
+    # print('-------------')
+    # p8.imprime(inclusaoPontoConvexo(p8,poligono))
+    # print('-------------')
+    # p9.imprime(inclusaoPontoConvexo(p9,poligono))
    
     
     #CriaFaixas()

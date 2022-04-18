@@ -33,10 +33,18 @@ class Ponto:
             x = self.x + other.x
             y = self.y + other.y
             return Ponto(x, y)
+    def __sub__(self, other):
+            x = self.x - other.x
+            y = self.y - other.y
+            return Ponto(x, y)
+        
 
     def __mul__(self, other: int):
             x = self.x * other
             y = self.y * other
             return Ponto(x, y)
+        
+    def __eq__(self, other: int):
+        return other.x == self.x and other.y == self.y
 
 

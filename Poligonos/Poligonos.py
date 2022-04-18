@@ -19,10 +19,14 @@ class Polygon:
     def getNVertices(self):
         return len(self.Vertices)
     
+    def inserePonto(self, ponto: Ponto):
+        self.Vertices += [ponto]
+    
     def insereVertice(self, x, y, z):
         self.Vertices += [Ponto(x,y,z)]
 
     def getVertice(self, i):
+        i = (i) % self.getNVertices()
         return self.Vertices[i]
     
     def desenhaPoligono(self):
@@ -89,8 +93,7 @@ class Polygon:
 
     def getAresta(self, n):
         
-        if(n >= self.getNVertices()): 
-            n = (n) % self.getNVertices()
+        n = (n) % self.getNVertices()
         P1 = self.Vertices[n]
         n1 = (n+1) % self.getNVertices()
         P2 = self.Vertices[n1]
