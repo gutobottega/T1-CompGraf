@@ -18,23 +18,30 @@
 #   Veja o arquivo Patch.rtf, armazenado na mesma pasta deste fonte.
 # ***********************************************************************************
 
-from math import sqrt
+from math import ceil, sqrt
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from Poligonos import Ponto, Polygon
 from Faixa import *
+from random import randrange
 
 # ***********************************************************************************
 Mapa = Polygon()
 ConvexHull = Polygon()
 
 EspacoDividido = ConjuntoDeFaixas()
+numeroDeFaixas = 10
 
 # Limites da Janela de Seleção
 Min = Ponto()
 Max = Ponto()
 PontoClicado = Ponto()
+
+contadorInterseccao = 0
+dentro = []
+fora = []
+pontos = []
 
 def pegaMenorMaior():
     menorX = 0
@@ -128,8 +135,7 @@ def inclusaoPontoConvexo(ponto:Ponto, poligono: Polygon):
 def inclusaoPontoConcavo(ponto:Ponto, poligono: Polygon):
     interseccao = 0
     Dir = Ponto(-1,0)
-    ponto2 = ponto + Dir * 100
-    DesenhaLinha(ponto, ponto2)
+    ponto2 = ponto + Dir * 1000
     arestasValidas = []
     for i in range(poligono.getNVertices()):
         P1, P2 = poligono.getAresta(i)
@@ -176,9 +182,12 @@ def intersec2d(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
 # Detecta interseccao entre os pontos
 #
 # **********************************************************************
-def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto) -> bool:
+def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
     ret, s, t = intersec2d( k,  l,  m,  n)
-    if not ret: return False
+    if not ret: 
+        return False
+    global contadorInterseccao
+    contadorInterseccao += 1
     return s>=0.0 and s <=1.0 and t>=0.0 and t<=1.0
 
 
@@ -203,12 +212,14 @@ def reshape(w,h):
 
 # ***********************************************************************************
 def display():
-    global PontoClicado
+    global PontoClicado, pontos, dentro, fora
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
     glColor3f(1.0, 1.0, 0.0)
     Mapa.desenhaPoligono()
+    glColor3f(1.0, 1.0, 1.0)
+    ConvexHull.desenhaPoligono()
 
     glColor3f(1.0, 0.0, 0.0)
     
@@ -225,7 +236,7 @@ def display():
 
     # desenha linha horizontal
     glColor3f(0,1,0) # R, G, B  [0..1]
-    DesenhaLinha(PontoClicado, Esq)
+    #DesenhaLinha(PontoClicado, Esq)
     #Esq.imprime("Esq")
     
     #F = CalculaFaixa(PontoClicado);
@@ -238,7 +249,23 @@ def display():
         #if(PassaPelaFaixa(i,F))
         if HaInterseccao(PontoClicado,Esq, P1, P2):
             Mapa.desenhaAresta(i)
+    glPointSize(5)
 
+    glColor3f(0,0,255)
+    glBegin(GL_POINTS);
+    for p in dentro:
+        glVertex3f(p.x,p.y,p.z)
+    glEnd();
+
+
+    glColor3f(1,0,0)
+    glBegin(GL_POINTS);
+    for p in fora:
+        glVertex3f(p.x,p.y,p.z)
+    glEnd();
+    
+    
+    glColor3f(1,0,0) # R, G, B  [0..1]
     #Mapa.desenhaVertices()
     glutSwapBuffers()
 
@@ -247,6 +274,7 @@ def display():
 #ESCAPE = '\033'
 ESCAPE = b'\x1b'
 def keyboard(*args):
+    global dentro, fora, pontos
     print (args)
     # If escape is pressed, kill everything.
     if args[0] == b'q':
@@ -257,6 +285,16 @@ def keyboard(*args):
         Mapa.imprimeVertices()
     if args[0] == b'a':
         Mapa.LePontosDeArquivo("EstadoRS.txt")
+    if args[0] == b't':
+        dentro, fora = testeFaixaForcaBruta(pontos)
+    if args[0] == b'y':
+        dentro, fora = testeConvexHull(pontos)
+        #todo: arrumar cores com convexhull
+    if args[0] == b'u':
+        dentro, fora = testeForcaBruta(pontos)
+    if args[0] == b'x':
+        dentro = []
+        fora = []
     if args[0] == b'1':
         P1, P2 = Mapa.getAresta(9)
         P1.imprime()
@@ -312,7 +350,7 @@ def mouseMove(x: int, y: int):
 def ImprimeFaixas():
     global EspacoDividido
     f = Faixa()
-    for i in range(10):
+    for i in range(numeroDeFaixas):
         print("Faixa", i,"-> ", end='')
         f = EspacoDividido.getFaixa(i)
         for a in range (f.getNroDeArestas()):
@@ -322,72 +360,106 @@ def ImprimeFaixas():
 
 def CriaFaixas():
     global EspacoDividido
- 
-    EspacoDividido.CriaFaixas(10)
-    # Exemplos de teste. O primeiro parametro da CadastraArestaNaFaixa
-    # eh a faixa o segundo eh a arestra
-    EspacoDividido.CadastraArestaNaFaixa(5,222)
-    EspacoDividido.CadastraArestaNaFaixa(2,10)
-    for i in range (100):
-        EspacoDividido.CadastraArestaNaFaixa(5,i)
-    EspacoDividido.CadastraArestaNaFaixa(3,11)
-    for i in range (20):
-        EspacoDividido.CadastraArestaNaFaixa(9,i)
+    EspacoDividido.CriaFaixas(numeroDeFaixas)
+    
+    alturaFaixas = ceil((Max.y - Min.y + numeroDeFaixas)/numeroDeFaixas)
+    arestas = list(range(Mapa.getNVertices()))
+    
+    for i in range(numeroDeFaixas):
+        alturaAtual = (alturaFaixas * i) + Min.y 
+        alturaProxima = alturaAtual + alturaFaixas
+        for j in arestas:
+            p1, p2 = Mapa.getAresta(j)
+            if(
+            (p1.y <= alturaProxima and p1.y >= alturaAtual) or 
+            (p2.y <= alturaProxima and p2.y >= alturaAtual) or 
+            (p2.y>= alturaProxima and p1.y <= alturaProxima) or 
+            (p2.y<= alturaAtual and p1.y >= alturaAtual)):
+                EspacoDividido.CadastraArestaNaFaixa(i,j)
+    
 
+def geraPontos(qtd):
+    pontos = []
+    for i in range(qtd):
+    #     y = randrange(Min.y - 100, Max.y + 100)
+    #     x = randrange(Min.x - 100, Max.x + 100)
+        y = randrange(Min.y, Max.y)
+        x = randrange(Min.x, Max.x)
+        pontos += [Ponto(x, y)]
+    return pontos
+
+#Força bruta, calculando o número de de interseções
+def testeForcaBruta(pontos):
+    dentro = []
+    fora = []
+    for p in pontos:
+        if(inclusaoPontoConcavo(p,Mapa)):
+            dentro += [p]
+        else: 
+            fora += [p]
+    return dentro, fora
+
+#Teste de inclusão em polígono convexo, usando o Convex Hull
+def testeConvexHull(pontos):
+    dentro = []
+    dentroConvex = []
+    fora = []
+    
+    global ConvexHull
+    
+    convexIds = quickHull()
+    
+    for i in convexIds:
+        ConvexHull.inserePonto(Mapa.getVertice(i))
+        
+    for p in pontos:
+        if(inclusaoPontoConvexo(p,ConvexHull)):
+            dentro += [p]
+        else: 
+            fora += [p]
+        
+    return dentro, fora
+
+#Teste de força bruta, considerando apenas as arestas que estão na faixa onde fica o ponto
+def testeFaixaForcaBruta(pontos):
+    alturaFaixas = ceil((Max.y - Min.y + numeroDeFaixas)/numeroDeFaixas)
+    dentro = []
+    fora = []
+    for p in pontos:
+        for i in range(numeroDeFaixas):
+            alturaAtual = (alturaFaixas * i) + Min.y 
+            alturaProxima = alturaAtual + alturaFaixas
+            if(p.y <= alturaProxima and p.y >= alturaAtual):
+                faixa = EspacoDividido.getFaixa(i)
+                interseccao = 0
+                for j in range(faixa.getNroDeArestas()): 
+                    p1, p2 = Mapa.getAresta(faixa.getAresta(j))
+                    Dir = Ponto(-1,0)
+                    pEsq = p + Dir * 1000
+                    if HaInterseccao(p1, p2, p, pEsq):
+                        if(p1.y == p.y):
+                            px1, __ = Mapa.getAresta(faixa.getAresta(j) - 1)
+                            if(minimoMaximoLocal(p, px1, p2)):
+                                interseccao += 1
+                        else: interseccao += 1
+                if interseccao % 2 != 0:
+                    dentro += [p]
+                else: fora += [p]
+    return dentro, fora
+    
 def init():
     # Define a cor do fundo da tela (AZUL)
-    glClearColor(0, 0, 1, 1)
-    global Min, Max
+    glClearColor(0, 0, 0, 0)
+    global Min, Max, pontos, dentro, fora
+    
     Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste2.txt")
-   
-    p = Mapa.getVertice(0)
-    #p.imprime()
-    #convexhull()
     
-    p1 = Ponto(8,4)
-    p2 = Ponto(4,7)
     
-    p = prodVetorial(p1,p2)
-    #p.imprime()
-   
-    #Mapa.imprimeVertices()
-    p1 = Ponto(0,0)
-    p2 = Ponto(0,10)
-    p3 = Ponto(10,10)
-    p4 = Ponto(10,0)
+    pontos = geraPontos(10000)
     
-    poligono = Polygon()
-    poligono.inserePonto(p)
-    poligono.inserePonto(p2)
-    poligono.inserePonto(p3)
-    poligono.inserePonto(p4)
+    CriaFaixas()
     
-    print(anguloEscalar(Ponto(-1,0), Ponto(-1,0)))
-    print(anguloEscalar(Ponto(-1,0), Ponto(-1,10)))
     
-    p1.imprime()
-    p2.imprime()
-    
-    p5 = Ponto(-2,5)
-    p6 = Ponto(5,12)
-    p7 = Ponto(12,5)
-    p8 = Ponto(5,-2)
-    p9 = Ponto(6,6)
-    
-    print(quickHull())
-    
-    # p5.imprime(inclusaoPontoConvexo(p5,poligono))
-    # print('-------------')
-    # p6.imprime(inclusaoPontoConvexo(p6,poligono))
-    # print('-------------')
-    # p7.imprime(inclusaoPontoConvexo(p7,poligono))
-    # print('-------------')
-    # p8.imprime(inclusaoPontoConvexo(p8,poligono))
-    # print('-------------')
-    # p9.imprime(inclusaoPontoConvexo(p9,poligono))
-   
-    
-    #CriaFaixas()
     #ImprimeFaixas()
 
 
