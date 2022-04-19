@@ -39,7 +39,9 @@ Max = Ponto()
 PontoClicado = Ponto()
 
 contadorInterseccao = 0
+contadorProdVetorial = 0
 dentro = []
+dentroConvex = []
 fora = []
 pontos = []
 
@@ -57,10 +59,14 @@ def pegaMenorMaior():
     return [menorX, maiorX, menorY, maiorY]
 
 def prodVetorial (v1, v2):
+    global contadorProdVetorial
+    contadorProdVetorial += 1
+    
     vresult = Ponto()
     vresult.x = v1.y * v2.z - (v1.z * v2.y)
     vresult.y = v1.z * v2.x - (v1.x * v2.z)
     vresult.z = v1.x * v2.y - (v1.y * v2.x)
+    
     return vresult
 
 def prodEscalar(v1, v2):
@@ -73,6 +79,7 @@ def anguloEscalar(v1, v2):
     return prod/(v1N*v2N)
 
 def quickHull():
+    global dentroConvex
     menorMaior = pegaMenorMaior()
     poligono = Polygon()
     poligono.inserePonto(Mapa.getVertice(menorMaior[0]))
@@ -183,11 +190,11 @@ def intersec2d(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
 #
 # **********************************************************************
 def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto):
+    global contadorInterseccao
+    contadorInterseccao += 1
     ret, s, t = intersec2d( k,  l,  m,  n)
     if not ret: 
         return False
-    global contadorInterseccao
-    contadorInterseccao += 1
     return s>=0.0 and s <=1.0 and t>=0.0 and t<=1.0
 
 
@@ -212,7 +219,7 @@ def reshape(w,h):
 
 # ***********************************************************************************
 def display():
-    global PontoClicado, pontos, dentro, fora
+    global PontoClicado, pontos, dentro, fora, dentroConvex
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -251,7 +258,13 @@ def display():
             Mapa.desenhaAresta(i)
     glPointSize(5)
 
-    glColor3f(0,0,255)
+    glColor3f(1,1,0)
+    glBegin(GL_POINTS);
+    for p in dentroConvex: 
+        glVertex3f(p.x,p.y,p.z)
+    glEnd();
+    
+    glColor3f(0,0,1)
     glBegin(GL_POINTS);
     for p in dentro:
         glVertex3f(p.x,p.y,p.z)
@@ -274,8 +287,10 @@ def display():
 #ESCAPE = '\033'
 ESCAPE = b'\x1b'
 def keyboard(*args):
-    global dentro, fora, pontos
-    print (args)
+    global dentro, dentroConvex, fora, pontos, contadorInterseccao, contadorProdVetorial
+    contadorInterseccao = 0
+    contadorProdVetorial = 0
+    #print (args)
     # If escape is pressed, kill everything.
     if args[0] == b'q':
         os._exit(0)
@@ -287,11 +302,17 @@ def keyboard(*args):
         Mapa.LePontosDeArquivo("EstadoRS.txt")
     if args[0] == b't':
         dentro, fora = testeFaixaForcaBruta(pontos)
+        print('Produto Vetorial:', contadorProdVetorial)
+        print('Intersecção:', contadorInterseccao)
     if args[0] == b'y':
-        dentro, fora = testeConvexHull(pontos)
+        dentro, fora, dentroConvex = testeConvexHull(pontos)
+        print('Produto Vetorial:', contadorProdVetorial)
+        print('Intersecção:', contadorInterseccao)
         #todo: arrumar cores com convexhull
     if args[0] == b'u':
         dentro, fora = testeForcaBruta(pontos)
+        print('Produto Vetorial:', contadorProdVetorial)
+        print('Intersecção:', contadorInterseccao)
     if args[0] == b'x':
         dentro = []
         fora = []
@@ -405,12 +426,11 @@ def testeConvexHull(pontos):
     dentroConvex = []
     fora = []
     
-    global ConvexHull
-    
     convexIds = quickHull()
     
     for i in convexIds:
         ConvexHull.inserePonto(Mapa.getVertice(i))
+        dentroConvex += [Mapa.getVertice(i)]
         
     for p in pontos:
         if(inclusaoPontoConvexo(p,ConvexHull)):
@@ -418,7 +438,7 @@ def testeConvexHull(pontos):
         else: 
             fora += [p]
         
-    return dentro, fora
+    return dentro, fora, dentroConvex
 
 #Teste de força bruta, considerando apenas as arestas que estão na faixa onde fica o ponto
 def testeFaixaForcaBruta(pontos):
