@@ -24,7 +24,8 @@ from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from Poligonos import Ponto, Polygon
 from Faixa import *
-from random import randrange
+from random import randrange, uniform
+import time
 
 # ***********************************************************************************
 Mapa = Polygon()
@@ -32,6 +33,7 @@ ConvexHull = Polygon()
 
 EspacoDividido = ConjuntoDeFaixas()
 numeroDeFaixas = 10
+quantidadePontos = 200
 
 # Limites da Janela de Seleção
 Min = Ponto()
@@ -282,45 +284,90 @@ def display():
     #Mapa.desenhaVertices()
     glutSwapBuffers()
 
-# ***********************************************************************************
-# The function called whenever a key is pressed. Note the use of Python tuples to pass in: (key, x, y)
-#ESCAPE = '\033'
+def processoInteiro(pts):
+    print('\nTeste Forca Bruta com Faixas:')
+    ConvexHull = Polygon()
+    inicio = time.perf_counter()
+    dentro, fora = testeFaixaForcaBruta(pts)
+    total = time.perf_counter() - inicio
+    print('Produto Vetorial:', contadorProdVetorial)
+    print('Intersecção:', contadorInterseccao)
+    print('Tempo execução:', total)
+    print('\nTeste ConvexHull:')
+    inicio = time.perf_counter()
+    dentro, fora, dentroConvex = testeConvexHull(pts)
+    total = time.perf_counter() - inicio
+    print('Produto Vetorial:', contadorProdVetorial)
+    print('Intersecção:', contadorInterseccao)
+    print('Tempo execução:', total)
+    print('\nTeste Força Bruta:')
+    ConvexHull = Polygon()
+    inicio = time.perf_counter()
+    dentro, fora = testeForcaBruta(pts)
+    total = time.perf_counter() - inicio
+    print('Produto Vetorial:', contadorProdVetorial)
+    print('Intersecção:', contadorInterseccao)
+    print('Tempo execução:', total)
+
+
 ESCAPE = b'\x1b'
 def keyboard(*args):
-    global dentro, dentroConvex, fora, pontos, contadorInterseccao, contadorProdVetorial
+    global dentro, dentroConvex, fora, pontos, contadorInterseccao, contadorProdVetorial, ConvexHull, Min, Max, quantidadePontos
     contadorInterseccao = 0
     contadorProdVetorial = 0
-    #print (args)
-    # If escape is pressed, kill everything.
-    if args[0] == b'q':
-        os._exit(0)
-    if args[0] == ESCAPE:
-        os._exit(0)
-    if args[0] == b'p':
-        Mapa.imprimeVertices()
-    if args[0] == b'a':
-        Mapa.LePontosDeArquivo("EstadoRS.txt")
+    if args[0] == b'z':
+        print('\n Com 200 pontos:')
+        processoInteiro(geraPontos(200))
+        print('\n Com 2000 pontos:')
+        processoInteiro(geraPontos(2000))
+        print('\n Com 20000 pontos:')
+        processoInteiro(geraPontos(20000))
+    if args[0] == b'1':
+        pontos = geraPontos(200)
+        quantidadePontos = 200 
+    if args[0] == b'2':
+        pontos = geraPontos(2000)
+        quantidadePontos = 2000 
+    if args[0] == b'3':
+        pontos = geraPontos(20000) 
+        quantidadePontos = 20000  
     if args[0] == b't':
+        dentroConvex = []
+        print('Teste Forca Bruta com Faixas:')
+        ConvexHull = Polygon()
+        inicio = time.perf_counter()
         dentro, fora = testeFaixaForcaBruta(pontos)
+        total = time.perf_counter() - inicio
         print('Produto Vetorial:', contadorProdVetorial)
         print('Intersecção:', contadorInterseccao)
+        print('Tempo execução:', total)
     if args[0] == b'y':
+        print('Teste ConvexHull:')
+        inicio = time.perf_counter()
         dentro, fora, dentroConvex = testeConvexHull(pontos)
+        total = time.perf_counter() - inicio
         print('Produto Vetorial:', contadorProdVetorial)
         print('Intersecção:', contadorInterseccao)
-        #todo: arrumar cores com convexhull
+        print('Tempo execução:', total)
     if args[0] == b'u':
+        dentroConvex = []
+        print('Teste Força Bruta:')
+        ConvexHull = Polygon()
+        inicio = time.perf_counter()
         dentro, fora = testeForcaBruta(pontos)
+        total = time.perf_counter() - inicio
         print('Produto Vetorial:', contadorProdVetorial)
         print('Intersecção:', contadorInterseccao)
+        print('Tempo execução:', total)
     if args[0] == b'x':
         dentro = []
-        fora = []
-    if args[0] == b'1':
-        P1, P2 = Mapa.getAresta(9)
-        P1.imprime()
-        P2.imprime()
-
+        ConvexHull = Polygon()
+        fora = [] 
+    if args[0] == b'a':
+        Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste2.txt")
+    if args[0] == ESCAPE:
+        os._exit(0)
+    dialogo()
 # Forca o redesenho da tela
     glutPostRedisplay()
 # **********************************************************************
@@ -365,7 +412,7 @@ def mouse(button: int, state: int, x: int, y: int):
 #
 # ***********************************************************************************
 def mouseMove(x: int, y: int):
-    #glutPostRedisplay()
+    glutPostRedisplay()
     return
 
 def ImprimeFaixas():
@@ -402,10 +449,8 @@ def CriaFaixas():
 def geraPontos(qtd):
     pontos = []
     for i in range(qtd):
-    #     y = randrange(Min.y - 100, Max.y + 100)
-    #     x = randrange(Min.x - 100, Max.x + 100)
-        y = randrange(Min.y, Max.y)
-        x = randrange(Min.x, Max.x)
+        y = uniform(round(Min.y), round(Max.y))
+        x = uniform(round(Min.x), round(Max.x))
         pontos += [Ponto(x, y)]
     return pontos
 
@@ -430,13 +475,16 @@ def testeConvexHull(pontos):
     
     for i in convexIds:
         ConvexHull.inserePonto(Mapa.getVertice(i))
-        dentroConvex += [Mapa.getVertice(i)]
         
     for p in pontos:
         if(inclusaoPontoConvexo(p,ConvexHull)):
-            dentro += [p]
+            dentroConvex += [p]
         else: 
             fora += [p]
+    
+    for p in dentroConvex:
+        if(inclusaoPontoConcavo(p,Mapa)):
+            dentro += [p]
         
     return dentro, fora, dentroConvex
 
@@ -466,19 +514,37 @@ def testeFaixaForcaBruta(pontos):
                     dentro += [p]
                 else: fora += [p]
     return dentro, fora
+
+def dialogo():
+    print('\n\n\n\n')
+    print('Escolha entre as opções a baixo (case sensitive):\n')
+    print('\'z\': Todos os testes para cada uma das quantidades de pontos (Cuidado!!! Pode demorar..)')
+    print('     Quantidade de Pontos (Atual:', quantidadePontos, '):')
+    print('     \'1\': 200 Pontos')
+    print('     \'2\': 2.000 Pontos')
+    print('     \'3\': 20.000 Pontos')
+    print('\'t\': Teste Forca Bruta com Faixas')
+    print('\'y\': Teste ConvexHull')
+    print('\'u\': Teste Força Bruta')
+    print('\'x\': Resetar o mapa')
+    print('\'a\': Usa exemplo reduzido')
+    print('\'Esq\': Finalizar programa')
     
 def init():
     # Define a cor do fundo da tela (AZUL)
     glClearColor(0, 0, 0, 0)
-    global Min, Max, pontos, dentro, fora
+    global Min, Max, pontos, dentro, fora, quantidadePontos
     
-    Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste2.txt")
+    #Min, Max = Mapa.LePontosDeArquivo("PoligonoDeTeste2.txt")
+
+    Min, Max = Mapa.LePontosDeArquivo("EstadoRS.txt")
     
     
-    pontos = geraPontos(10000)
+    pontos = geraPontos(quantidadePontos)
     
     CriaFaixas()
     
+    dialogo()
     
     #ImprimeFaixas()
     

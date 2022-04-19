@@ -22,6 +22,9 @@ class Polygon:
     def inserePonto(self, ponto: Ponto):
         self.Vertices += [ponto]
     
+    def reset(self):
+        self.Vertices = []
+    
     def insereVertice(self, x, y, z):
         self.Vertices += [Ponto(x,y,z)]
 
@@ -73,7 +76,7 @@ class Polygon:
 #  Realiza a leitura de uam arquivo com as coordenadas do polígono
 # ***********************************************************************************
     def LePontosDeArquivo(self, Nome):
-        
+        self.reset()
         Pt = Ponto()
         infile = open(Nome)
         line = infile.readline()
